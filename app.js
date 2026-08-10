@@ -815,7 +815,7 @@ function updateVcvTemplateExample() {
       <div><strong>${t("helper_example_title")}</strong></div>
       <div>KY：<span class="helper-example">_き_きゅ_きぇ_きょ</span></div>
       <div>Y：<span class="helper-example">_${yi}_ゆ_いぇ_よ</span></div>
-      <div>W：<span class="helper-example">_${wu}_うぃ_うぇ_うぉ</span></div>
+      <div>W：<span class="helper-example">_うぃ_${wu}_うぇ_うぉ</span></div>
     `;
   } else {
     helperDefaultText.textContent = t("helper_default_vcv");
