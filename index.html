@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title data-i18n="title">UTAU 录音表自动生成 v0.28</title>
+<link href="style.css" rel="stylesheet"/>
+</head>
+<body>
+<main class="page">
+<header class="hero hero-row">
+<div>
+<h1 data-i18n="app_title">UTAU 录音表自动生成</h1>
+<p class="sub" data-i18n="subtitle">Prototype v0.28 — 单独音 / 连单术 / 连续音 / CVVC</p>
+</div>
+<div aria-label="Language" class="language-switcher"><label><input checked="" name="language" type="radio" value="zh"/><span>中文</span></label><label><input name="language" type="radio" value="ja"/><span>日本語</span></label><label><input name="language" type="radio" value="en"/><span>English</span></label></div></header>
+<section class="panel">
+<h2 data-i18n="recording_type">录音形式</h2>
+<div class="segmented">
+<label>
+<input checked="" name="mode" type="radio" value="cv"/>
+<span data-i18n="mode_cv">单独音</span>
+</label>
+<label>
+<input name="mode" type="radio" value="rentan"/>
+<span data-i18n="mode_rtj">连单术</span>
+</label>
+<label>
+<input name="mode" type="radio" value="vcv"/>
+<span data-i18n="mode_vcv">连续音</span>
+</label>
+<label>
+<input name="mode" type="radio" value="cvvc"/>
+<span>CVVC</span>
+</label>
+</div>
+</section>
+<section class="panel mode-panel hidden" id="rentan-set-panel">
+<h2 data-i18n="rtj_phoneme_set_title">连单术音素集</h2>
+<div class="option-row no-top">
+<div>
+<strong data-i18n="phoneme_set">录音音素集</strong>
+<small data-i18n="standard_jp_note">如果是第一次录音，且接受过系统日语发音训练，可以优先使用标准日语模式，按照平时的发音习惯录制即可。</small>
+</div>
+<div class="mini-segment">
+<label><input checked="" name="rentan-set" type="radio" value="itsuki"/><span data-i18n="itsuki_style">树月式</span></label>
+<label><input name="rentan-set" type="radio" value="standard"/><span data-i18n="standard_japanese">标准日语</span></label>
+</div>
+</div>
+</section>
+<section class="panel">
+<h2 data-i18n="loanword_phonemes" id="foreign-section-title">外来语音素</h2>
+<p class="hint" data-i18n="loanword_hint">基础日语音固定包含。下面的扩展音可自行追加。</p>
+<div class="check-grid">
+<label class="check-card cv-only-foreign">
+<input class="cv-extra-toggle" type="checkbox" value="SI_ZI"/>
+<span>
+<strong>すぃ・ずぃ</strong>
+<small data-i18n="loanword_phonemes">外来语音素</small>
+</span>
+</label>
+<label class="check-card cv-only-foreign">
+<input class="cv-extra-toggle" type="checkbox" value="TI_TU"/>
+<span>
+<strong>てぃ・とぅ</strong>
+<small data-i18n="loanword_phonemes">外来语音素</small>
+</span>
+</label>
+<label class="check-card cv-only-foreign">
+<input class="cv-extra-toggle" type="checkbox" value="DI_DU"/>
+<span>
+<strong>でぃ・どぅ</strong>
+<small data-i18n="add_d_row">加入D行</small>
+</span>
+</label>
+<label class="check-card" id="card-ts">
+<input class="foreign-toggle" type="checkbox" value="TS"/>
+<span>
+<strong data-i18n="tsa_row">つぁ行</strong>
+<small data-i18n="loanword_phonemes" id="ts-note">外来语音素</small>
+</span>
+</label>
+<label class="check-card">
+<input class="foreign-toggle" type="checkbox" value="F"/>
+<span>
+<strong data-i18n="fa_row">ふぁ行</strong>
+<small data-i18n="loanword_phonemes">外来语音素</small>
+</span>
+</label>
+<label class="check-card">
+<input class="foreign-toggle" type="checkbox" value="V_CONS"/>
+<span>
+<strong data-i18n="va_row">ヴぁ行</strong>
+<small data-i18n="loanword_phonemes">外来语音素</small>
+</span>
+</label>
+<label class="check-card">
+<input id="short-u-toggle" type="checkbox"/>
+<span>
+<strong>ふゅ・てゅ・でゅ</strong>
+<small data-i18n="loanword_phonemes">外来语音素</small>
+</span>
+</label>
+</div>
+</section>
+<section class="panel mode-panel hidden" id="vcv-custom-panel">
+<h2 data-i18n="custom_set">自定义音节组</h2>
+<p class="hint" data-i18n="custom_hint">如果想加入录音表中没有的音，请分别填写 a / i / u / e / o 五个音。和已有音重复一部分也没关系。目前只能添加一组自定义音节。</p>
+<div class="custom-vcv-grid">
+<label><span>a</span><input id="vcv-custom-a" maxlength="4" placeholder="ガ" type="text"/></label>
+<label><span>i</span><input id="vcv-custom-i" maxlength="4" placeholder="ギ" type="text"/></label>
+<label><span>u</span><input id="vcv-custom-u" maxlength="4" placeholder="グ" type="text"/></label>
+<label><span>e</span><input id="vcv-custom-e" maxlength="4" placeholder="ゲ" type="text"/></label>
+<label><span>o</span><input id="vcv-custom-o" maxlength="4" placeholder="ゴ" type="text"/></label>
+</div>
+<p class="custom-status" id="vcv-custom-status"></p>
+</section>
+<section class="panel display-panel" id="display-panel">
+<h2 data-i18n="notation" id="display-section-title">录音表记</h2>
+<p class="hint" data-i18n="notation_hint">只改变录音表中的写法，不改变实际需要录制的音。</p>
+<div class="option-row">
+<div>
+<strong data-i18n="i_row_helper">い段补助</strong>
+<small data-i18n="ya_row_etc">や行等</small>
+</div>
+<div class="mini-segment">
+<label><input checked="" name="yi" type="radio" value="normal"/><span>い</span></label>
+<label><input name="yi" type="radio" value="marked"/><span>いぃ</span></label>
+</div>
+</div>
+<div class="option-row">
+<div>
+<strong data-i18n="u_row_helper">う段补助</strong>
+<small data-i18n="wa_row_etc">わ行等</small>
+</div>
+<div class="mini-segment">
+<label><input checked="" name="wu" type="radio" value="normal"/><span>う</span></label>
+<label><input name="wu" type="radio" value="marked"/><span>うぅ</span></label>
+</div>
+</div>
+<div class="option-row" id="fu-display-row">
+<div>
+<strong data-i18n="fa_u_row">ふぁ行 う段</strong>
+<small data-i18n="f_row_only">只作用于 F 行</small>
+</div>
+<div class="mini-segment">
+<label><input name="fu" type="radio" value="normal"/><span>ふ</span></label>
+<label><input checked="" name="fu" type="radio" value="marked"/><span>ふぅ</span></label>
+</div>
+</div>
+</section>
+<section class="panel mode-panel" id="cv-options">
+<h2 data-i18n="cv_settings">单独音设置</h2>
+<label class="switch-row">
+<span>
+<strong data-i18n="add_leading_underscore">行首添加「_」</strong>
+<small data-i18n="example_ka">例：_か</small>
+</span>
+<input id="cv-underscore" type="checkbox"/>
+</label>
+</section>
+<section class="panel mode-panel hidden" id="rentan-options">
+<h2 data-i18n="rtj_settings">连单术设置</h2>
+<label class="switch-row">
+<span>
+<strong data-i18n="add_numbers">自动编号</strong>
+<small data-i18n="example_numbered">例：01_かきくけこか</small>
+</span>
+<input id="rentan-numbering" type="checkbox"/>
+</label>
+</section>
+<section class="panel mode-panel hidden" id="vcv-options">
+<h2 data-i18n="vcv_settings" id="mora-settings-title">连续音设置</h2>
+<div class="option-row no-top">
+<div>
+<strong data-i18n="mora_count">Mora 数</strong>
+<small data-i18n="fixed_8_mora">固定为 8 mora</small>
+</div>
+<div class="fixed-value">8 mora</div>
+</div>
+<div class="option-row">
+<div>
+<strong data-i18n="n_position">ん出现的位置</strong>
+<small data-i18n="n_position_hint">选择「ん」出现在第几拍。系统会自动使用对应的推荐排列。</small>
+</div>
+<div class="n-position-grid">
+<label><input checked="" name="vcv-n-position" type="radio" value="2"/><span>2</span></label>
+<label><input name="vcv-n-position" type="radio" value="3"/><span>3</span></label>
+<label><input name="vcv-n-position" type="radio" value="4"/><span>4</span></label>
+<label><input name="vcv-n-position" type="radio" value="5"/><span>5</span></label>
+<label><input name="vcv-n-position" type="radio" value="6"/><span>6</span></label>
+<label><input name="vcv-n-position" type="radio" value="7"/><span>7</span></label>
+</div>
+</div>
+<div class="template-preview">
+<div class="template-rule" id="vcv-template-rule">A N A A I A U A</div>
+<code id="vcv-template-example">_あんああいあうあ</code>
+</div>
+<div class="option-row hidden" id="cvvc-numbering-row">
+<div>
+<strong data-i18n="add_numbers">自动编号</strong>
+<small data-i18n="numbering_hint">开启后给每条非空录音行添加序号。</small>
+</div>
+<label class="switch-control">
+<input id="cvvc-numbering" type="checkbox"/>
+<span data-i18n="enable">启用</span>
+</label>
+</div>
+<div class="helper-default">
+<div>
+<strong data-i18n="helper_sounds">补助音</strong>
+<small data-i18n="helper_default_vcv" id="helper-default-text">默认不单独录制补助音。录音表中仍会使用这些音来帮助连接发音。</small>
+</div>
+<span class="recommended-badge" data-i18n="helper_recommended" id="helper-recommended-badge">推荐：省略补助音</span>
+</div>
+<details class="advanced-details">
+<summary data-i18n="advanced_settings">高级设置</summary>
+<div class="advanced-content">
+<div class="option-row no-top">
+<div>
+<strong data-i18n="helper_recording">补助音的录制方式</strong>
+<small data-i18n="helper_recording_hint">选择“录制补助音”后，会把补助音也作为需要单独录制的音加入录音表。</small>
+</div>
+<div class="mini-segment">
+<label><input checked="" name="vcv-helper" type="radio" value="compact"/><span data-i18n="skip_helper">省略补助音</span></label>
+<label><input name="vcv-helper" type="radio" value="full"/><span data-i18n="record_helper">录制补助音</span></label>
+</div>
+</div>
+<div class="helper-note" id="helper-note">
+<div>拗音：きゃ <span class="helper-example">き</span> きゅ きぇ きょ</div>
+<div>Y：や <span class="helper-example">い / いぃ</span> ゆ いぇ よ</div>
+<div>W：わ うぃ <span class="helper-example">う / うぅ</span> うぇ うぉ</div>
+</div>
+</div>
+</details>
+</section>
+<details class="panel preview-details" id="preview-section" open="">
+<summary class="preview-summary">
+<div>
+<h2 data-i18n="group_preview" id="preview-title">录音分组预览</h2>
+<p class="hint" data-i18n="group_preview_hint">显示当前设置下实际使用的组。</p>
+</div>
+<span class="preview-summary-hint" data-i18n="expand_collapse">点击展开 / 折叠</span>
+</summary>
+<div id="preview-body">
+<div class="preview-grid" id="group-preview"></div>
+</div>
+</details>
+<section class="panel result-panel">
+<div class="section-head">
+<div>
+<h2 data-i18n="generated_reclist" id="result-title">生成结果</h2>
+<p class="hint" id="result-meta"></p>
+</div>
+<button class="primary" data-i18n="regenerate" id="generate-btn">刷新生成</button>
+</div>
+<textarea data-i18n-placeholder="output_placeholder" id="output" placeholder="录音表会生成在这里。" spellcheck="false"></textarea>
+<div class="export-options"><div class="export-label"><strong data-i18n="export_encoding">文件编码</strong><small data-i18n="export_encoding_hint">使用 OREMO 时请选择 ANSI，否则录音表会乱码。</small></div><div class="mini-segment export-encoding-segment"><label><input checked="" name="export-encoding" type="radio" value="ansi"/><span data-i18n="encoding_ansi">ANSI（OREMO）</span></label><label><input name="export-encoding" type="radio" value="utf8"/><span data-i18n="encoding_utf8">UTF-8</span></label></div></div><div class="actions">
+<button data-i18n="copy" id="copy-btn">复制</button>
+<button data-i18n="save_reclist" id="download-btn">保存 reclist.txt</button>
+</div>
+<div class="coverage-summary hidden" id="coverage-summary">
+<div><strong data-i18n="vcv_check" id="coverage-main-label">连续音检查</strong><span id="coverage-vcv-value">—</span></div>
+<div><strong data-i18n="starting_sounds_check" id="coverage-start-label">句首音检查</strong><span id="coverage-start-value">—</span></div>
+<div><strong data-i18n="missing_sounds">缺少的音</strong><span id="coverage-missing-value">—</span></div>
+<div class="missing-groups hidden" id="coverage-missing-list"></div>
+</div>
+<p class="dirty-status hidden" data-i18n="dirty_status" id="dirty-status">设置已更改，请刷新生成。</p>
+<p aria-live="polite" class="status" id="status"></p>
+</section>
+<footer><p data-i18n="footer_version">v0.28：单独音 / 连单术 / 连续音 / CVVC</p><p class="author-credit">UTAU Reclist Generator · by itsukiMNE</p></footer>
+</main>
+<script src="sounds.js"></script>
+<script src="groups.js"></script>
+<script src="presets.js"></script>
+<script src="i18n.js"></script><script src="cp932-map.js"></script><script src="app.js"></script>
+</body>
+</html>
