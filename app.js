@@ -1,5 +1,5 @@
 // app.js
-// v0.28：中文 / 日本語 / English。
+// v0.38：中文 / 日本語 / English。
 
 function t(key) {
   return uiText(key);
@@ -12,6 +12,9 @@ const vcvOptions = document.getElementById("vcv-options");
 const vcvCustomPanel = document.getElementById("vcv-custom-panel");
 const previewSection = document.getElementById("preview-section");
 const rentanSetPanel = document.getElementById("rentan-set-panel");
+const rentanSetTitle = document.getElementById("rentan-set-title");
+const rentanOptionsTitle = document.getElementById("rentan-options-title");
+const rentanNumberingExample = document.getElementById("rentan-numbering-example");
 const displayPanel = document.getElementById("display-panel");
 const preview = document.getElementById("group-preview");
 const output = document.getElementById("output");
@@ -28,10 +31,17 @@ const tsNote = document.getElementById("ts-note");
 const templateExample = document.getElementById("vcv-template-example");
 const templateRule = document.getElementById("vcv-template-rule");
 const moraSettingsTitle = document.getElementById("mora-settings-title");
+const moraMinus = document.getElementById("mora-minus");
+const moraPlus = document.getElementById("mora-plus");
+const moraValueEl = document.getElementById("mora-value");
+const moraRangeHint = document.getElementById("mora-range-hint");
 const helperNote = document.getElementById("helper-note");
 const helperDefaultText = document.getElementById("helper-default-text");
 const helperRecommendedBadge = document.getElementById("helper-recommended-badge");
 const cvvcNumberingRow = document.getElementById("cvvc-numbering-row");
+const cvvcStartModeRow = document.getElementById("cvvc-start-mode-row");
+const cvvc7MoraWarning = document.getElementById("cvvc-7mora-warning");
+const coverageStartRow = document.getElementById("coverage-start-row");
 const cvvcNumbering = document.getElementById("cvvc-numbering");
 const coverageSummary = document.getElementById("coverage-summary");
 const coverageVcvValue = document.getElementById("coverage-vcv-value");
@@ -55,6 +65,7 @@ let lastVcvBuild = null;
 let lastCvvcBuild = null;
 let previousMode = null;
 let outputDirty = false;
+const moraByMode = { vcv: 8, cvvc: 8 };
 
 function getMode() {
   return document.querySelector('input[name="mode"]:checked').value;
@@ -77,8 +88,10 @@ function getSettings() {
     rentanSet: document.querySelector('input[name="rentan-set"]:checked')?.value ?? "itsuki",
     rentanNumbering: document.getElementById("rentan-numbering").checked,
     vcvNPosition: document.querySelector('input[name="vcv-n-position"]:checked')?.value ?? "2",
+    vcvMora: moraByMode[getMode()] ?? 8,
     vcvHelper: document.querySelector('input[name="vcv-helper"]:checked')?.value ?? "compact",
     cvvcNumbering: cvvcNumbering.checked,
+    cvvcStartMode: document.querySelector('input[name="cvvc-start-mode"]:checked')?.value ?? "group",
     vcvCustom: {
       a: customInputs.a.value.trim(),
       i: customInputs.i.value.trim(),
@@ -313,6 +326,50 @@ function buildRentanText(settings) {
   }).join("\n");
 }
 
+function getRentanFuGroups(settings) {
+  const rentanGroups = getRentanGroups(settings);
+
+  return rentanGroups.map(group => {
+    // 母音和ん沿用れんたんじゅつ原本的单独行。
+    if (group.id === "VOWEL") {
+      return {
+        ...group,
+        lines: [...group.lines]
+      };
+    }
+
+    // 其他组一条音频录多个彼此分开的单独音。
+    // 不保留れんたんじゅつ句尾重复的第一个音。
+    return {
+      ...group,
+      lines: ["_" + group.previewSounds.join("_")]
+    };
+  });
+}
+
+function buildRentanFuText(settings) {
+  const groups = getRentanFuGroups(settings);
+  let lines = [];
+
+  for (let i = 0; i < groups.length; i++) {
+    lines.push(...groups[i].lines);
+    if (i < groups.length - 1) lines.push("");
+  }
+
+  if (!settings.rentanNumbering) return lines.join("\n");
+
+  const nonEmpty = lines.filter(Boolean);
+  const digits = Math.max(2, String(nonEmpty.length).length);
+  let n = 0;
+
+  return lines.map(line => {
+    if (!line) return "";
+    n += 1;
+    return `${String(n).padStart(digits, "0")}${line}`;
+  }).join("\n");
+}
+
+
 
 
 function getExistingVcvSounds(settings) {
@@ -365,6 +422,81 @@ function getCustomVcvGroup(settings) {
 function getVowel(sound, customGroup = null) {
   if (customGroup?.vowelMap?.[sound]) return customGroup.vowelMap[sound];
   return SOUNDS[sound]?.vowel ?? null;
+}
+
+
+function getMoraRange(mode) {
+  return mode === "cvvc" ? { min: 4, max: 8 } : { min: 6, max: 8 };
+}
+
+function getLegalNPositions(mode, mora) {
+  if (mode === "vcv") {
+    const map = {
+      6: [2, 3, 4, 5],
+      7: [2, 3, 4, 5, 6],
+      8: [2, 3, 4, 5, 6, 7]
+    };
+    return map[mora] ?? map[8];
+  }
+
+  const map = {
+    4: [2, 3],
+    5: [2, 3, 4],
+    6: [2, 3, 4, 5],
+    7: [2, 3, 4, 5, 6],
+    8: [2, 3, 4, 5, 6, 7]
+  };
+  return map[mora] ?? map[8];
+}
+
+function syncMoraAndNControls() {
+  const mode = getMode();
+  if (mode !== "vcv" && mode !== "cvvc") return;
+
+  const range = getMoraRange(mode);
+  let mora = moraByMode[mode] ?? 8;
+  mora = Math.max(range.min, Math.min(range.max, mora));
+  moraByMode[mode] = mora;
+
+  moraValueEl.textContent = `${mora} mora`;
+  moraMinus.disabled = mora <= range.min;
+  moraPlus.disabled = mora >= range.max;
+  moraRangeHint.textContent = mode === "cvvc" ? t("mora_range_cvvc") : t("mora_range_vcv");
+
+  const legal = getLegalNPositions(mode, mora);
+  const radios = [...document.querySelectorAll('input[name="vcv-n-position"]')];
+  const current = Number(document.querySelector('input[name="vcv-n-position"]:checked')?.value ?? legal[0]);
+
+  radios.forEach(radio => {
+    radio.disabled = !legal.includes(Number(radio.value));
+  });
+
+  if (!legal.includes(current)) {
+    const fallback = Math.max(...legal);
+    const radio = document.querySelector(`input[name="vcv-n-position"][value="${fallback}"]`);
+    if (radio) radio.checked = true;
+  }
+
+  cvvc7MoraWarning.classList.toggle(
+    "hidden",
+    !(mode === "cvvc" && mora === 7)
+  );
+}
+
+function setMora(delta) {
+  const mode = getMode();
+  if (mode !== "vcv" && mode !== "cvvc") return;
+
+  const range = getMoraRange(mode);
+  const current = moraByMode[mode] ?? 8;
+  const next = Math.max(range.min, Math.min(range.max, current + delta));
+  if (next === current) return;
+
+  moraByMode[mode] = next;
+  syncMoraAndNControls();
+  markOutputDirty();
+  updateVcvTemplateExample();
+  refreshUiText();
 }
 
 // -------------------------
@@ -467,7 +599,7 @@ function buildVcvRequiredTargets(settings) {
   return targets;
 }
 
-function buildVcvMainLinesForGroup(id, settings) {
+function buildVcvFullMainLinesForGroup(id, settings) {
   const seq = getVcvSequence(id);
   const targetIndices = new Set(getVcvTargetIndices(id, settings));
   const template = VCV_8MORA_TEMPLATES[settings.vcvNPosition];
@@ -487,12 +619,276 @@ function buildVcvMainLinesForGroup(id, settings) {
     lines.push({
       groupId: id,
       kind: "main",
+      rowIndex,
       tokens,
       text: "_" + tokens.map(t => displaySound(t.sound, id, settings, false, true)).join("")
     });
   }
 
   return lines;
+}
+
+function vcvCoverageEdgeKey(prevToken, curToken, customGroup = null) {
+  if (!curToken?.targetKey) return null;
+  const context = getVowel(prevToken.sound, customGroup);
+  if (!context) return null;
+  return `${curToken.targetKey}::${context}`;
+}
+
+function collectVcvEdgeCandidates(lines, customGroup = null) {
+  const map = new Map();
+
+  for (const line of lines) {
+    const tokens = line.tokens ?? [];
+    for (let i = 1; i < tokens.length; i++) {
+      const key = vcvCoverageEdgeKey(tokens[i - 1], tokens[i], customGroup);
+      if (!key || map.has(key)) continue;
+
+      map.set(key, {
+        key,
+        from: tokens[i - 1].sound,
+        to: tokens[i].sound
+      });
+    }
+  }
+
+  return map;
+}
+
+function getMissingVcvEdges(fullLines, shortenedLines, customGroup = null) {
+  const full = collectVcvEdgeCandidates(fullLines, customGroup);
+  const shortened = collectVcvEdgeCandidates(shortenedLines, customGroup);
+
+  return [...full.values()].filter(edge => !shortened.has(edge.key));
+}
+
+function makeVcvSupplementToken(sound, id, settings, customGroup = null) {
+  if (sound === "ん") {
+    return makeToken("ん", "MORAIC_N", true);
+  }
+
+  if (customGroup) {
+    return makeToken(sound, customGroup.id, true);
+  }
+
+  const seq = getVcvSequence(id);
+  const idx = seq.indexOf(sound);
+  const targetIndices = new Set(getVcvTargetIndices(id, settings));
+  return makeToken(sound, id, idx >= 0 && targetIndices.has(idx));
+}
+
+function enumerateExactVcvTrails(edges, maxMora) {
+  const n = edges.length;
+  if (!n) return [];
+
+  const trailsByMask = new Map();
+
+  function addTrail(mask, nodes, edgeIndices) {
+    const old = trailsByMask.get(mask);
+    if (!old || nodes.length < old.nodes.length) {
+      trailsByMask.set(mask, { mask, nodes: [...nodes], edgeIndices: [...edgeIndices] });
+    }
+  }
+
+  function dfs(mask, nodes, edgeIndices) {
+    addTrail(mask, nodes, edgeIndices);
+    if (nodes.length >= maxMora) return;
+
+    const last = nodes[nodes.length - 1];
+    for (let i = 0; i < n; i++) {
+      if (mask & (1 << i)) continue;
+      const edge = edges[i];
+      if (edge.from !== last) continue;
+
+      dfs(
+        mask | (1 << i),
+        [...nodes, edge.to],
+        [...edgeIndices, i]
+      );
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    dfs(1 << i, [edges[i].from, edges[i].to], [i]);
+  }
+
+  return [...trailsByMask.values()];
+}
+
+function findMinimumExactTrailCover(edges, maxMora) {
+  const n = edges.length;
+  if (!n) return [];
+  if (n > 20) {
+    // Short-mora VCV groups are small; this is only a safety fallback.
+    return edges.map((edge, i) => ({
+      mask: 1 << i,
+      nodes: [edge.from, edge.to],
+      edgeIndices: [i]
+    }));
+  }
+
+  const allMask = (1 << n) - 1;
+  const trails = enumerateExactVcvTrails(edges, maxMora);
+  const trailsByEdge = Array.from({ length: n }, () => []);
+
+  for (const trail of trails) {
+    for (let i = 0; i < n; i++) {
+      if (trail.mask & (1 << i)) trailsByEdge[i].push(trail);
+    }
+  }
+
+  const memo = new Map();
+
+  function solve(mask) {
+    if (mask === allMask) return [];
+    if (memo.has(mask)) return memo.get(mask);
+
+    let first = 0;
+    while (mask & (1 << first)) first++;
+
+    let best = null;
+
+    for (const trail of trailsByEdge[first]) {
+      if (trail.mask & mask) continue;
+      const rest = solve(mask | trail.mask);
+      if (!rest) continue;
+
+      const candidate = [trail, ...rest];
+      if (
+        !best ||
+        candidate.length < best.length ||
+        (
+          candidate.length === best.length &&
+          candidate.reduce((s, x) => s + x.nodes.length, 0) <
+          best.reduce((s, x) => s + x.nodes.length, 0)
+        )
+      ) {
+        best = candidate;
+      }
+    }
+
+    memo.set(mask, best);
+    return best;
+  }
+
+  return solve(0) ?? [];
+}
+
+function bridgePackVcvTrails(trails, maxMora) {
+  const work = trails.map(trail => ({
+    nodes: [...trail.nodes],
+    extraBridges: 0
+  }));
+
+  // Exact trail construction is preferred. Only after that, join otherwise
+  // disconnected trails when they fit on one recording line.
+  while (true) {
+    let best = null;
+
+    for (let i = 0; i < work.length; i++) {
+      for (let j = 0; j < work.length; j++) {
+        if (i === j) continue;
+
+        const a = work[i];
+        const b = work[j];
+        const combinedLength = a.nodes.length + b.nodes.length;
+        if (combinedLength > maxMora) continue;
+
+        const score = {
+          fill: combinedLength,
+          bridgeSame: a.nodes[a.nodes.length - 1] === b.nodes[0] ? 1 : 0
+        };
+
+        if (
+          !best ||
+          score.bridgeSame > best.score.bridgeSame ||
+          (score.bridgeSame === best.score.bridgeSame && score.fill > best.score.fill)
+        ) {
+          best = { i, j, score };
+        }
+      }
+    }
+
+    if (!best) break;
+
+    const a = work[best.i];
+    const b = work[best.j];
+    const merged = {
+      nodes: [...a.nodes, ...b.nodes],
+      extraBridges: a.extraBridges + b.extraBridges + 1
+    };
+
+    const hi = Math.max(best.i, best.j);
+    const lo = Math.min(best.i, best.j);
+    work.splice(hi, 1);
+    work.splice(lo, 1);
+    work.push(merged);
+  }
+
+  // Stable output: longer merged lines first.
+  work.sort((a, b) => b.nodes.length - a.nodes.length);
+  return work;
+}
+
+function buildMergedVcvSupplements(id, settings, fullLines, mainLines, customGroup = null) {
+  if (settings.vcvMora >= 8) return [];
+
+  const edges = getMissingVcvEdges(fullLines, mainLines, customGroup);
+  if (!edges.length) return [];
+
+  const exactTrails = findMinimumExactTrailCover(edges, settings.vcvMora);
+  const packed = bridgePackVcvTrails(exactTrails, settings.vcvMora);
+
+  return packed.map(path => {
+    const tokens = path.nodes.map(sound =>
+      makeVcvSupplementToken(sound, id, settings, customGroup)
+    );
+
+    return {
+      groupId: id,
+      kind: "mora-supplement",
+      tokens,
+      text: "_" + tokens
+        .map(token =>
+          customGroup
+            ? token.sound
+            : displaySound(token.sound, id, settings, false, true)
+        )
+        .join("")
+    };
+  });
+}
+
+function shortenVcvMainLines(id, settings, fullLines, seq, customGroup = null) {
+  const mora = settings.vcvMora;
+  if (mora === 8) return { main: fullLines, moraSupplements: [] };
+
+  const main = fullLines.map(line => {
+    const tokens = line.tokens.slice(0, mora);
+    return {
+      ...line,
+      tokens,
+      text: "_" + tokens
+        .map(t => customGroup ? t.sound : displaySound(t.sound, id, settings, false, true))
+        .join("")
+    };
+  });
+
+  const moraSupplements = buildMergedVcvSupplements(
+    id,
+    settings,
+    fullLines,
+    main,
+    customGroup
+  );
+
+  return { main, moraSupplements };
+}
+
+function buildVcvMainLinesForGroup(id, settings) {
+  const seq = getVcvSequence(id);
+  const full = buildVcvFullMainLinesForGroup(id, settings);
+  return shortenVcvMainLines(id, settings, full, seq);
 }
 
 function coverageFromLines(lines, requiredTargets, customGroup = null) {
@@ -592,6 +988,27 @@ function buildSupplementForGroup(id, settings, mainLines, requiredTargets) {
   }];
 }
 
+function splitTokenLineWithOverlap(line, maxMora, displayFn = t => t.sound) {
+  if (line.tokens.length <= maxMora) return [line];
+
+  const result = [];
+  let start = 0;
+
+  while (start < line.tokens.length - 1) {
+    const tokens = line.tokens.slice(start, start + maxMora);
+    result.push({
+      ...line,
+      tokens,
+      text: "_" + tokens.map(displayFn).join("")
+    });
+
+    if (start + maxMora >= line.tokens.length) break;
+    start += maxMora - 1;
+  }
+
+  return result;
+}
+
 function buildShortULines(settings) {
   if (!settings.shortU) return [];
 
@@ -614,18 +1031,21 @@ function buildShortULines(settings) {
       return makeToken(sound, null, false);
     });
 
-    lines.push({
+    const longLine = {
       groupId: "SHORT_U",
       kind: "special",
       tokens: tokens1,
       text: "_" + raw1.join("")
-    });
-    lines.push({
+    };
+    const shortLine = {
       groupId: "SHORT_U",
       kind: "special",
       tokens: tokens2,
       text: "_" + raw2.join("")
-    });
+    };
+
+    lines.push(...splitTokenLineWithOverlap(longLine, settings.vcvMora));
+    lines.push(shortLine);
   }
 
   return lines;
@@ -633,11 +1053,14 @@ function buildShortULines(settings) {
 
 
 function buildCustomVcvLines(settings, customGroup) {
-  if (!customGroup || customGroup.incomplete || customGroup.duplicate) return [];
+  if (!customGroup || customGroup.incomplete || customGroup.duplicate) return {
+    main: [],
+    moraSupplements: []
+  };
 
   const template = VCV_8MORA_TEMPLATES[settings.vcvNPosition];
   const seq = customGroup.sequence;
-  const lines = [];
+  const fullLines = [];
 
   for (let rowIndex = 0; rowIndex < 5; rowIndex++) {
     const tokens = template.map(step => {
@@ -646,15 +1069,229 @@ function buildCustomVcvLines(settings, customGroup) {
       return makeToken(seq[idx], customGroup.id, true);
     });
 
-    lines.push({
+    fullLines.push({
       groupId: customGroup.id,
       kind: "main",
+      rowIndex,
       tokens,
       text: "_" + tokens.map(t => t.sound).join("")
     });
   }
 
+  return shortenVcvMainLines(customGroup.id, settings, fullLines, seq, customGroup);
+}
+
+
+function collectRequiredVcvEdgesFromCandidates(baseLines, candidateLines, groupTargets, customGroup = null) {
+  const check = coverageFromLines(baseLines, groupTargets, customGroup);
+  const missingKeys = new Set(
+    check.missing
+      .filter(item => item.context !== "-")
+      .map(item => `${item.key}::${item.context}`)
+  );
+
+  if (!missingKeys.size) return [];
+
+  const found = new Map();
+
+  for (const line of candidateLines) {
+    const tokens = line.tokens ?? [];
+    for (let i = 1; i < tokens.length; i++) {
+      const prev = tokens[i - 1];
+      const cur = tokens[i];
+      if (!cur.targetKey) continue;
+
+      const context = getVowel(prev.sound, customGroup);
+      if (!context) continue;
+
+      const key = `${cur.targetKey}::${context}`;
+      if (!missingKeys.has(key) || found.has(key)) continue;
+
+      found.set(key, {
+        key,
+        from: prev.sound,
+        to: cur.sound
+      });
+    }
+  }
+
+  return [...found.values()];
+}
+
+function mergeAllVcvSupplements(id, settings, baseLines, candidateLines, groupTargets, customGroup = null) {
+  if (!candidateLines.length) return [];
+
+  const edges = collectRequiredVcvEdgesFromCandidates(
+    baseLines,
+    candidateLines,
+    groupTargets,
+    customGroup
+  );
+
+  if (!edges.length) return [];
+
+  const exactTrails = findMinimumExactTrailCover(edges, settings.vcvMora);
+  const packed = bridgePackVcvTrails(exactTrails, settings.vcvMora);
+
+  return packed.map(path => {
+    const tokens = path.nodes.map(sound =>
+      makeVcvSupplementToken(sound, id, settings, customGroup)
+    );
+
+    return {
+      groupId: id,
+      kind: "supplement",
+      tokens,
+      text: "_" + tokens
+        .map(token =>
+          customGroup
+            ? token.sound
+            : displaySound(token.sound, id, settings, false, true)
+        )
+        .join("")
+    };
+  });
+}
+
+function buildOptimizedShortULines(settings) {
+  if (!settings.shortU) return [];
+
+  const lines = [];
+
+  for (const x of SHORT_U_SOUNDS) {
+    const id = "SHORT_U";
+
+    const raw1 = [x, x, "あ", x, "い", x, "え", x];
+    const tokens1 = raw1.map(sound =>
+      sound === x
+        ? makeToken(sound, id, true)
+        : makeToken(sound, null, false)
+    );
+
+    const raw2 = ["ん", x, "お", x];
+    const tokens2 = raw2.map(sound => {
+      if (sound === "ん") return makeToken("ん", "MORAIC_N", true);
+      if (sound === x) return makeToken(sound, id, true);
+      return makeToken(sound, null, false);
+    });
+
+    const longLine = {
+      groupId: id,
+      kind: "special",
+      tokens: tokens1,
+      text: "_" + raw1.join("")
+    };
+
+    const splitLong = splitTokenLineWithOverlap(longLine, settings.vcvMora);
+    const firstLine = splitLong[0];
+    lines.push(firstLine);
+
+    if (settings.vcvMora === 8) {
+      lines.push({
+        groupId: id,
+        kind: "special",
+        tokens: tokens2,
+        text: "_" + raw2.join("")
+      });
+      continue;
+    }
+
+    // After the first line, only e/N/o -> x remain necessary.
+    // Keep N first, then e, then o for a fixed, easy-to-read pattern.
+    const missingContexts = [];
+    const singleTarget = [{
+      key: targetKey(id, x),
+      groupId: id,
+      raw: x,
+      display: x
+    }];
+    const check = coverageFromLines([firstLine], singleTarget);
+
+    for (const context of ["N", "e", "o"]) {
+      if (check.missing.some(item => item.context === context)) {
+        missingContexts.push(context);
+      }
+    }
+
+    if (missingContexts.length) {
+      const contextSound = {
+        N: "ん",
+        e: "え",
+        o: "お"
+      };
+
+      const tokens = [];
+      for (const context of missingContexts) {
+        const prev = contextSound[context];
+        tokens.push(
+          prev === "ん"
+            ? makeToken("ん", "MORAIC_N", true)
+            : makeToken(prev, null, false)
+        );
+        tokens.push(makeToken(x, id, true));
+      }
+
+      lines.push({
+        groupId: id,
+        kind: "special-supplement",
+        tokens,
+        text: "_" + tokens.map(token => token.sound).join("")
+      });
+    }
+  }
+
   return lines;
+}
+
+
+function mergeMoraWithProtectedHelper(moraSupplements, helperSupplement, settings) {
+  const moraLines = moraSupplements.map(line => ({ ...line, tokens: [...(line.tokens ?? [])] }));
+  const helperLines = helperSupplement.map(line => ({ ...line, tokens: [...(line.tokens ?? [])] }));
+
+  if (!helperLines.length || !moraLines.length) {
+    return [...moraLines, ...helperLines];
+  }
+
+  const used = new Set();
+  const mergedHelpers = [];
+
+  for (const helper of helperLines) {
+    let bestIndex = -1;
+    let bestLength = -1;
+
+    for (let i = 0; i < moraLines.length; i++) {
+      if (used.has(i)) continue;
+      const moraLine = moraLines[i];
+      const combinedLength = moraLine.tokens.length + helper.tokens.length;
+      if (combinedLength > settings.vcvMora) continue;
+
+      if (combinedLength > bestLength) {
+        bestLength = combinedLength;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex < 0) {
+      mergedHelpers.push(helper);
+      continue;
+    }
+
+    used.add(bestIndex);
+    const moraLine = moraLines[bestIndex];
+    const tokens = [...moraLine.tokens, ...helper.tokens];
+
+    mergedHelpers.push({
+      groupId: helper.groupId,
+      kind: "supplement",
+      tokens,
+      text: "_" + tokens
+        .map(token => displaySound(token.sound, helper.groupId, settings, false, true))
+        .join("")
+    });
+  }
+
+  const remainingMora = moraLines.filter((_, i) => !used.has(i));
+  return [...remainingMora, ...mergedHelpers];
 }
 
 function buildVcv(settings) {
@@ -670,9 +1307,41 @@ function buildVcv(settings) {
     const seq = getVcvSequence(id);
     if (seq.length !== 5) continue;
 
-    const main = buildVcvMainLinesForGroup(id, settings);
-    const supplement = buildSupplementForGroup(id, settings, main, requiredTargets);
-    const lines = [...main, ...supplement];
+    const builtMain = buildVcvMainLinesForGroup(id, settings);
+
+    const groupTargets = requiredTargets.filter(target => target.groupId === id);
+
+    // Mora shortening supplements may be merged freely.
+    const mergedMoraSupplements = settings.vcvMora < 8
+      ? mergeAllVcvSupplements(
+          id,
+          settings,
+          builtMain.main,
+          builtMain.moraSupplements,
+          groupTargets
+        )
+      : builtMain.moraSupplements;
+
+    // Helper supplements keep the same fixed structure as the 8-mora version.
+    // They are intentionally NOT included in the final minimum-coverage merge.
+    const helperBase = [...builtMain.main, ...mergedMoraSupplements];
+    const helperSupplement = buildSupplementForGroup(
+      id,
+      settings,
+      helperBase,
+      requiredTargets
+    );
+
+    const finalSupplements = mergeMoraWithProtectedHelper(
+      mergedMoraSupplements,
+      helperSupplement,
+      settings
+    );
+
+    const lines = [
+      ...builtMain.main,
+      ...finalSupplements
+    ];
 
     if (id === "VOWEL") {
       const nn = {
@@ -692,14 +1361,27 @@ function buildVcv(settings) {
   }
 
   if (customGroup && !customGroup.incomplete && !customGroup.duplicate) {
-    const customLines = buildCustomVcvLines(settings, customGroup);
+    const customBuilt = buildCustomVcvLines(settings, customGroup);
+    const customTargets = requiredTargets.filter(target => target.groupId === customGroup.id);
+    const customSupplements = settings.vcvMora < 8
+      ? mergeAllVcvSupplements(
+          customGroup.id,
+          settings,
+          customBuilt.main,
+          customBuilt.moraSupplements,
+          customTargets,
+          customGroup
+        )
+      : customBuilt.moraSupplements;
+
+    const customLines = [...customBuilt.main, ...customSupplements];
     groups.push({ id: customGroup.id, lines: customLines });
     allLines.push(...customLines);
   }
 
   // ふゅ・てゅ・でゅは必ず最後。
   if (settings.shortU) {
-    const shortLines = buildShortULines(settings);
+    const shortLines = buildOptimizedShortULines(settings);
     groups.push({ id: "SHORT_U", lines: shortLines });
     allLines.push(...shortLines);
   }
@@ -719,6 +1401,7 @@ function buildVcv(settings) {
 
 function renderCoverage(build) {
   coverageSummary.classList.remove("hidden");
+  coverageStartRow.classList.remove("hidden");
 
   const required = build.requiredTargets;
   const missing = build.coverage.missing;
@@ -801,9 +1484,14 @@ function updateVcvTemplateExample() {
   const table = mode === "cvvc" ? cvvcPresets : vcvPresets;
   const preset = table[settings.vcvNPosition] ?? table["2"];
 
+  const ruleParts = preset.rule.split(" ");
+  const exampleChars = [...preset.example.slice(1)];
+  const currentRule = ruleParts.slice(0, settings.vcvMora).join(" ");
+  const currentExample = "_" + exampleChars.slice(0, settings.vcvMora).join("");
+
   moraSettingsTitle.textContent = mode === "cvvc" ? t("cvvc_settings") : t("vcv_settings");
-  templateRule.textContent = preset.rule;
-  templateExample.textContent = preset.example;
+  templateRule.textContent = currentRule;
+  templateExample.textContent = currentExample;
 
   const yi = settings.yiMarked ? "いぃ" : "い";
   const wu = settings.wuMarked ? "うぅ" : "う";
@@ -856,22 +1544,36 @@ function getCvvcFormalIndices(id, settings) {
   return getVcvTargetIndices(id, settings);
 }
 
-function buildCvvcMainLine(id, settings, customGroup = null) {
+function splitCvvcTokens(tokens, maxMora) {
+  if (tokens.length <= maxMora) return [tokens];
+
+  const chunks = [];
+  let start = 0;
+
+  while (start < tokens.length - 1) {
+    const chunk = tokens.slice(start, start + maxMora);
+    chunks.push(chunk);
+
+    if (start + maxMora >= tokens.length) break;
+    start += maxMora - 1;
+  }
+
+  return chunks;
+}
+
+function buildCvvcMainLines(id, settings, customGroup = null) {
   const seq = customGroup ? customGroup.sequence : getVcvSequence(id);
   const template = CVVC_8MORA_TEMPLATES[settings.vcvNPosition];
-  const tokens = template.map(step => {
-    if (step === "N") return "ん";
-    return seq[step];
-  });
+  const fullTokens = template.map(step => step === "N" ? "ん" : seq[step]);
 
-  return {
+  return splitCvvcTokens(fullTokens, settings.vcvMora).map((tokens, index) => ({
     groupId: id,
-    kind: "vc-main",
+    kind: index === 0 ? "vc-main" : "vc-tail",
     text: "_" + tokens
       .map(sound => customGroup ? sound : displaySound(sound, id, settings, false, true))
       .join(""),
     tokens
-  };
+  }));
 }
 
 
@@ -919,14 +1621,23 @@ function getCvvcStartIndices(id, settings) {
   return [...indices].sort((a, b) => a - b);
 }
 
-function buildCvvcStartLine(id, settings, customGroup = null) {
+function buildCvvcStartLine(id, settings, generatedLines, customGroup = null) {
   const seq = customGroup ? customGroup.sequence : getVcvSequence(id);
   const formalIndices = customGroup
     ? [0, 1, 2, 3, 4]
     : getCvvcStartIndices(id, settings);
 
-  // 主行第一拍已经承担 -A，只补其余正式CV。
-  const remaining = formalIndices.filter(idx => idx !== 0);
+  const formalSounds = new Set(formalIndices.map(idx => seq[idx]));
+  const alreadyStarts = new Set();
+
+  for (const line of generatedLines) {
+    const first = line.tokens?.[0];
+    if (first && formalSounds.has(first)) {
+      alreadyStarts.add(first);
+    }
+  }
+
+  const remaining = formalIndices.filter(idx => !alreadyStarts.has(seq[idx]));
   if (!remaining.length) return null;
 
   const sounds = remaining.map(idx => {
@@ -1036,40 +1747,55 @@ function computeCvvcCoverage(build, settings, customGroup) {
   const coveredStart = new Set();
   const coveredVc = new Set();
 
-  // 母音句首行。
-  for (const sound of ["あ","い","う","え","お","ん"]) {
-    coveredStart.add(`start::VOWEL::${sound}`);
-  }
+  for (const line of build.allLines) {
+    const id = line.groupId;
 
-  for (const group of build.groups) {
-    const id = group.id;
-
-    if (id === "VOWEL") continue;
+    if (id === "VOWEL") {
+      for (const sound of line.starts ?? []) {
+        coveredStart.add(`start::VOWEL::${sound}`);
+      }
+      continue;
+    }
 
     if (id === "SHORT_U") {
-      for (const sound of SHORT_U_SOUNDS) {
+      for (const sound of line.starts ?? []) {
         coveredStart.add(`start::SHORT_U::${sound}`);
       }
       continue;
     }
 
     const cg = id === "CUSTOM_VCV" ? customGroup : null;
-    const seq = cg ? cg.sequence : getVcvSequence(id);
+    const group = GROUPS[id];
+    const seq = cg ? cg.sequence : (group ? getVcvSequence(id) : []);
+    if (!seq.length) continue;
+
     const formalIndices = cg ? [0,1,2,3,4] : getCvvcStartIndices(id, settings);
+    const formalSounds = new Set(formalIndices.map(idx => seq[idx]));
+    const seqSounds = new Set(seq);
 
-    // 主行第一拍。
-    if (formalIndices.includes(0)) {
-      coveredStart.add(`start::${id}::${seq[0]}`);
+    for (const sound of line.starts ?? []) {
+      if (formalSounds.has(sound)) {
+        coveredStart.add(`start::${id}::${sound}`);
+      }
     }
 
-    // 句首补充行。
-    for (const idx of formalIndices) {
-      coveredStart.add(`start::${id}::${seq[idx]}`);
+    const tokens = line.tokens ?? [];
+    if (!tokens.length) continue;
+
+    if (formalSounds.has(tokens[0])) {
+      coveredStart.add(`start::${id}::${tokens[0]}`);
     }
 
-    // 完整五音主行按模板设计，必定覆盖 a/i/u/e/o/N C。
-    for (const ctx of ["a","i","u","e","o","N"]) {
-      coveredVc.add(`vc::${id}::${ctx}`);
+    for (let i = 1; i < tokens.length; i++) {
+      const prev = tokens[i - 1];
+      const cur = tokens[i];
+
+      if (!seqSounds.has(cur)) continue;
+
+      const ctx = prev === "ん" ? "N" : getVowel(prev, cg);
+      if (["a","i","u","e","o","N"].includes(ctx)) {
+        coveredVc.add(`vc::${id}::${ctx}`);
+      }
     }
   }
 
@@ -1080,6 +1806,7 @@ function computeCvvcCoverage(build, settings, customGroup) {
       missing.push({ type: "start", ...item });
     }
   }
+
   for (const item of build.required.vcItems) {
     if (!coveredVc.has(item.key)) {
       missing.push({ type: "vc", ...item });
@@ -1106,12 +1833,25 @@ function applyLineNumbering(text) {
 function buildCvvc(settings) {
   const customGroup = getCustomVcvGroup(settings);
   const groups = [];
+  const endStartLines = [];
 
-  // 句首母音/ん。
+  // 母音和ん始终保留，并保持在开头。
   groups.push({
     id: "VOWEL",
     lines: buildCvvcVowelLines()
   });
+
+  function appendCvvcGroup(id, mainLines, startLine = null) {
+    const lines = [...mainLines];
+
+    if (settings.cvvcStartMode === "group") {
+      if (startLine) lines.push(startLine);
+    } else if (settings.cvvcStartMode === "end") {
+      if (startLine) endStartLines.push(startLine);
+    }
+
+    groups.push({ id, lines });
+  }
 
   for (const id of CVVC_ORDER) {
     if (id === "VOWEL" || id === "__CUSTOM__" || id === "__SHORT_U__") continue;
@@ -1120,30 +1860,78 @@ function buildCvvc(settings) {
     const seq = getVcvSequence(id);
     if (seq.length !== 5) continue;
 
-    const main = buildCvvcMainLine(id, settings);
-    const start = buildCvvcStartLine(id, settings);
+    const mainLines = buildCvvcMainLines(id, settings);
+    const start = buildCvvcStartLine(id, settings, mainLines);
 
-    const lines = [main];
-    if (start) lines.push(start);
-
-    groups.push({ id, lines });
+    appendCvvcGroup(id, mainLines, start);
   }
 
-  // 自定义完整五音组：普通完整组规则，放在短特殊组之前。
   if (customGroup && !customGroup.incomplete && !customGroup.duplicate) {
-    const main = buildCvvcMainLine(customGroup.id, settings, customGroup);
-    const start = buildCvvcStartLine(customGroup.id, settings, customGroup);
-    groups.push({
-      id: customGroup.id,
-      lines: start ? [main, start] : [main]
-    });
+    const mainLines = buildCvvcMainLines(customGroup.id, settings, customGroup);
+    const start = buildCvvcStartLine(customGroup.id, settings, mainLines, customGroup);
+
+    appendCvvcGroup(customGroup.id, mainLines, start);
   }
 
-  // ふゅ・てゅ・でゅ永远最后，只录句首CV。
-  if (settings.shortU) {
+  // ふゅ・てゅ・でゅ属于特殊句首补充：
+  // group模式仍保持最后；end模式与其他句首CV一起集中到最后；
+    const shortStartLines = settings.shortU
+    ? buildCvvcShortULines(settings)
+    : [];
+
+  if (settings.cvvcStartMode === "end") {
+    const START_CV_SECTIONS = [
+      {
+        id: "START_CV_SEION",
+        groups: new Set(["K", "S", "T", "TS", "N_ROW", "H", "M", "R", "Y", "W", "F"])
+      },
+      {
+        id: "START_CV_DAKUON",
+        groups: new Set(["G", "Z", "D", "B", "P", "V_CONS"])
+      },
+      {
+        id: "START_CV_YOON_SEION",
+        groups: new Set(["SH", "CH", "KY", "HY", "NY", "MY", "RY", "PY"])
+      },
+      {
+        id: "START_CV_YOON_DAKUON",
+        groups: new Set(["J", "GY", "BY"])
+      }
+    ];
+
+    const placed = new Set();
+
+    for (const section of START_CV_SECTIONS) {
+      const lines = endStartLines.filter(line => section.groups.has(line.groupId));
+      if (!lines.length) continue;
+
+      lines.forEach(line => placed.add(line));
+      groups.push({
+        id: section.id,
+        lines
+      });
+    }
+
+    // 自定义音节组等不属于固定四类的句首补充单独成段。
+    const remaining = endStartLines.filter(line => !placed.has(line));
+    if (remaining.length) {
+      groups.push({
+        id: "START_CV_OTHER",
+        lines: remaining
+      });
+    }
+
+    // ふゅ・てゅ・でゅ仍然永远最后，并与前面的句首补充留出空行。
+    if (shortStartLines.length) {
+      groups.push({
+        id: "SHORT_U",
+        lines: shortStartLines
+      });
+    }
+  } else if (settings.cvvcStartMode === "group" && shortStartLines.length) {
     groups.push({
       id: "SHORT_U",
-      lines: buildCvvcShortULines(settings)
+      lines: shortStartLines
     });
   }
 
@@ -1151,6 +1939,7 @@ function buildCvvc(settings) {
   const allLines = groups.flatMap(group => group.lines);
 
   const rawText = groups
+    .filter(group => group.lines.length)
     .map(group => group.lines.map(line => line.text).join("\n"))
     .join("\n\n");
 
@@ -1169,6 +1958,8 @@ function renderCvvcCoverage(build) {
   coverageSummary.classList.remove("hidden");
   coverageMainLabel.textContent = t("vc_check");
   coverageStartLabel.textContent = t("starting_sounds_check");
+
+  coverageStartRow.classList.remove("hidden");
 
   const startTotal = build.required.startItems.length;
   const vcTotal = build.required.vcItems.length;
@@ -1357,10 +2148,24 @@ function refreshUiText() {
   } else if (mode === "cv") {
     foreignSectionTitle.textContent = t("section_foreign_cv");
     resultTitle.textContent = t("section_result_cv");
+  } else if (mode === "rentanfu") {
+    foreignSectionTitle.textContent = t("section_foreign_rentan");
+    displaySectionTitle.textContent = t("section_display_rentan");
+    resultTitle.textContent = t("section_result_rentanf");
   } else {
     foreignSectionTitle.textContent = t("section_foreign_rentan");
     displaySectionTitle.textContent = t("section_display_rentan");
     resultTitle.textContent = t("section_result_rentan");
+  }
+
+  if (mode === "rentanfu") {
+    rentanSetTitle.textContent = t("rtf_phoneme_set_title");
+    rentanOptionsTitle.textContent = t("rtf_settings");
+    rentanNumberingExample.textContent = t("example_rtf_numbered");
+  } else {
+    rentanSetTitle.textContent = t("rtj_phoneme_set_title");
+    rentanOptionsTitle.textContent = t("rtj_settings");
+    rentanNumberingExample.textContent = t("example_numbered");
   }
 
   syncRequiredGroups();
@@ -1370,12 +2175,15 @@ function refreshUiText() {
 
     if (settings.mode === "cv") {
       resultMeta.textContent = t("meta_cv")(countCvSounds(settings));
+    } else if (settings.mode === "rentanfu") {
+      const count = output.value.split("\n").filter(Boolean).length;
+      resultMeta.textContent = t("meta_rentanf")(count, settings.rentanSet);
     } else if (settings.mode === "vcv") {
-      const count = lastVcvBuild?.allLines.length ?? output.value.split("\n").filter(Boolean).length;
-      resultMeta.textContent = t("meta_vcv")(count);
+      const count = output.value.split("\n").filter(Boolean).length;
+      resultMeta.textContent = t("meta_vcv")(count, settings.vcvMora);
     } else if (settings.mode === "cvvc") {
       const count = output.value.split("\n").filter(Boolean).length;
-      resultMeta.textContent = t("meta_cvvc")(count);
+      resultMeta.textContent = t("meta_cvvc")(count, settings.vcvMora);
     } else {
       const count = output.value.split("\n").filter(Boolean).length;
       resultMeta.textContent = t("meta_rentan")(count, settings.rentanSet);
@@ -1386,7 +2194,9 @@ function refreshUiText() {
 function syncUi() {
   const mode = getMode();
   const isCv = mode === "cv";
+  const isRentanFu = mode === "rentanfu";
   const isRentan = mode === "rentan";
+  const isRentanLike = isRentanFu || isRentan;
   const isVcv = mode === "vcv";
   const isCvvc = mode === "cvvc";
   const isContinuous8 = isVcv || isCvvc;
@@ -1402,14 +2212,20 @@ function syncUi() {
   }
 
   // 模式专用模块。
-  rentanSetPanel.classList.toggle("hidden", !isRentan);
+  rentanSetPanel.classList.toggle("hidden", !isRentanLike);
   cvOptions.classList.toggle("hidden", !isCv);
-  rentanOptions.classList.toggle("hidden", !isRentan);
+  rentanOptions.classList.toggle("hidden", !isRentanLike);
 
-  // VCV/CVVC共用：8 mora / ん位置 / helper。
+  // VCV/CVVC共用：mora / ん位置 / helper。
   vcvOptions.classList.toggle("hidden", !isContinuous8);
   vcvCustomPanel.classList.toggle("hidden", !isContinuous8);
+  syncMoraAndNControls();
   cvvcNumberingRow.classList.toggle("hidden", !isCvvc);
+  cvvcStartModeRow.classList.toggle("hidden", !isCvvc);
+  cvvc7MoraWarning.classList.toggle(
+    "hidden",
+    !(isCvvc && moraByMode.cvvc === 7)
+  );
 
   // 录音表记：单独音不需要；其他模式保留。
   displayPanel.classList.toggle("hidden", isCv);
@@ -1431,10 +2247,11 @@ function syncUi() {
   syncRequiredGroups();
   refreshUiText();
 
-  if (isRentan) {
+  if (isRentanLike) {
     renderPreview();
   }
 
+  syncMoraAndNControls();
   updateVcvTemplateExample();
   updateCustomVcvStatus();
 }
@@ -1450,11 +2267,30 @@ function generate() {
     resultMeta.textContent = t("meta_cv")(countCvSounds(settings));
     coverageSummary.classList.add("hidden");
 
+  } else if (settings.mode === "rentanfu") {
+    lastVcvBuild = null;
+    lastCvvcBuild = null;
+    output.value = buildRentanFuText(settings);
+    const count = output.value.split("\n").filter(Boolean).length;
+    resultMeta.textContent = t("meta_rentanf")(count, settings.rentanSet);
+    coverageSummary.classList.add("hidden");
+
+  } else if (settings.mode === "rentan") {
+    lastVcvBuild = null;
+    lastCvvcBuild = null;
+    output.value = buildRentanText(settings);
+    const count = output.value.split("\n").filter(Boolean).length;
+    resultMeta.textContent = t("meta_rentan")(count, settings.rentanSet);
+    coverageSummary.classList.add("hidden");
+
   } else if (settings.mode === "vcv") {
     lastCvvcBuild = null;
     lastVcvBuild = buildVcv(settings);
     output.value = lastVcvBuild.text;
-    resultMeta.textContent = t("meta_vcv")(lastVcvBuild.allLines.length);
+    resultMeta.textContent = t("meta_vcv")(
+      output.value.split("\n").filter(Boolean).length,
+      settings.vcvMora
+    );
     coverageMainLabel.textContent = t("vcv_check");
     coverageStartLabel.textContent = t("starting_sounds_check");
     renderCoverage(lastVcvBuild);
@@ -1464,16 +2300,11 @@ function generate() {
     const build = buildCvvc(settings);
     lastCvvcBuild = build;
     output.value = build.text;
-    resultMeta.textContent = t("meta_cvvc")(build.allLines.length);
+    resultMeta.textContent = t("meta_cvvc")(
+      output.value.split("\n").filter(Boolean).length,
+      settings.vcvMora
+    );
     renderCvvcCoverage(build);
-
-  } else {
-    lastVcvBuild = null;
-    lastCvvcBuild = null;
-    output.value = buildRentanText(settings);
-    const count = output.value.split("\n").filter(Boolean).length;
-    resultMeta.textContent = t("meta_rentan")(count, settings.rentanSet);
-    coverageSummary.classList.add("hidden");
   }
 
   markOutputFresh();
@@ -1500,6 +2331,7 @@ function getExportEncoding() {
 function getExportTypeCode(mode) {
   return {
     cv: "CV",
+    rentanfu: "RTF",
     rentan: "RTJ",
     vcv: "VCV",
     cvvc: "CVVC"
@@ -1580,12 +2412,12 @@ modeInputs.forEach(el => el.addEventListener("change", () => {
 }));
 
 document.querySelectorAll(
-  '.foreign-toggle, .cv-extra-toggle, #short-u-toggle, #cvvc-numbering, input[name="yi"], input[name="wu"], input[name="fu"], input[name="rentan-set"], input[name="vcv-n-position"], input[name="vcv-helper"]'
+  '.foreign-toggle, .cv-extra-toggle, #short-u-toggle, #cvvc-numbering, input[name="cvvc-start-mode"], input[name="yi"], input[name="wu"], input[name="fu"], input[name="rentan-set"], input[name="vcv-n-position"], input[name="vcv-helper"]'
 ).forEach(el => el.addEventListener("change", () => {
   markOutputDirty();
   syncRequiredGroups();
   updateVcvTemplateExample();
-  if (getMode() === "rentan") renderPreview();
+  if (getMode() === "rentan" || getMode() === "rentanfu") renderPreview();
   refreshUiText();
   updateCustomVcvStatus();
 }));
@@ -1596,6 +2428,9 @@ Object.values(customInputs).forEach(input => {
     updateCustomVcvStatus();
   });
 });
+
+moraMinus.addEventListener("click", () => setMora(-1));
+moraPlus.addEventListener("click", () => setMora(1));
 
 document.getElementById("generate-btn").addEventListener("click", generate);
 document.getElementById("copy-btn").addEventListener("click", copyOutput);

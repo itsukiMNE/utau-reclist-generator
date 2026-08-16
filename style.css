@@ -611,3 +611,81 @@ footer {
     width: 100%;
   }
 }
+
+
+.development-notice {
+  margin: -4px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.stepper-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper-button {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.stepper-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.n-position-grid input:disabled + span {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.credit-panel code {
+  display: inline-block;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+
+.cvvc-start-mode-segment {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cvvc-mora-warning {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.credit-template {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  user-select: text;
+}
+
+.segmented {
+  flex-wrap: wrap;
+}

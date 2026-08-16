@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title data-i18n="title">UTAU 录音表自动生成 v0.28</title>
+<title data-i18n="title">UTAU 录音表自动生成 v0.38</title>
 <link href="style.css" rel="stylesheet"/>
 </head>
 <body>
@@ -12,15 +12,23 @@
 <header class="hero hero-row">
 <div>
 <h1 data-i18n="app_title">UTAU 录音表自动生成</h1>
-<p class="sub" data-i18n="subtitle">Prototype v0.28 — 单独音 / 连单术 / 连续音 / CVVC</p>
+<p class="sub" data-i18n="subtitle">Prototype v0.38 — 单独音 / 连单风 / 连单术 / 连续音 / CVVC</p>
 </div>
 <div aria-label="Language" class="language-switcher"><label><input checked="" name="language" type="radio" value="zh"/><span>中文</span></label><label><input name="language" type="radio" value="ja"/><span>日本語</span></label><label><input name="language" type="radio" value="en"/><span>English</span></label></div></header>
+    <div class="development-notice" id="development-notice" data-i18n="development_notice">
+      本工具仍在开发中，正式录音前建议先确认生成结果。
+    </div>
+
 <section class="panel">
 <h2 data-i18n="recording_type">录音形式</h2>
 <div class="segmented">
 <label>
 <input checked="" name="mode" type="radio" value="cv"/>
 <span data-i18n="mode_cv">单独音</span>
+</label>
+<label>
+<input name="mode" type="radio" value="rentanfu"/>
+<span data-i18n="mode_rtf">连单风</span>
 </label>
 <label>
 <input name="mode" type="radio" value="rentan"/>
@@ -37,7 +45,7 @@
 </div>
 </section>
 <section class="panel mode-panel hidden" id="rentan-set-panel">
-<h2 data-i18n="rtj_phoneme_set_title">连单术音素集</h2>
+<h2 data-i18n="rtj_phoneme_set_title" id="rentan-set-title">连单术音素集</h2>
 <div class="option-row no-top">
 <div>
 <strong data-i18n="phoneme_set">录音音素集</strong>
@@ -161,11 +169,11 @@
 </label>
 </section>
 <section class="panel mode-panel hidden" id="rentan-options">
-<h2 data-i18n="rtj_settings">连单术设置</h2>
+<h2 data-i18n="rtj_settings" id="rentan-options-title">连单术设置</h2>
 <label class="switch-row">
 <span>
 <strong data-i18n="add_numbers">自动编号</strong>
-<small data-i18n="example_numbered">例：01_かきくけこか</small>
+<small data-i18n="example_numbered" id="rentan-numbering-example">例：01_かきくけこか</small>
 </span>
 <input id="rentan-numbering" type="checkbox"/>
 </label>
@@ -175,9 +183,13 @@
 <div class="option-row no-top">
 <div>
 <strong data-i18n="mora_count">Mora 数</strong>
-<small data-i18n="fixed_8_mora">固定为 8 mora</small>
+<small id="mora-range-hint" data-i18n="mora_range_vcv">连续音可选择 6～8 mora</small>
 </div>
-<div class="fixed-value">8 mora</div>
+<div class="stepper-control" aria-label="Mora">
+<button type="button" id="mora-minus" class="stepper-button" aria-label="Decrease mora">−</button>
+<div class="fixed-value" id="mora-value">8 mora</div>
+<button type="button" id="mora-plus" class="stepper-button" aria-label="Increase mora">+</button>
+</div>
 </div>
 <div class="option-row">
 <div>
@@ -206,6 +218,20 @@
 <input id="cvvc-numbering" type="checkbox"/>
 <span data-i18n="enable">启用</span>
 </label>
+</div>
+<div class="option-row hidden" id="cvvc-start-mode-row">
+<div>
+<strong data-i18n="cvvc_start_cv_title">句首 CV</strong>
+<small data-i18n="cvvc_start_cv_hint">选择句首 CV 补充行的排列方式</small>
+</div>
+<div class="mini-segment cvvc-start-mode-segment">
+<label><input type="radio" name="cvvc-start-mode" value="group" checked/><span data-i18n="cvvc_start_group">按音节组排列</span></label>
+<label><input type="radio" name="cvvc-start-mode" value="end"/><span data-i18n="cvvc_start_end">集中到最后</span></label>
+
+</div>
+</div>
+<div class="cvvc-mora-warning hidden" id="cvvc-7mora-warning" data-i18n="cvvc_7mora_warning">
+如果使用 7 mora 录音表搭配 8 mora BGM，录音总时间会比直接录制 8 mora 更长。推荐直接使用 8 mora 录音表，或使用 6 mora BGM 搭配 6 mora 录音表。
 </div>
 <div class="helper-default">
 <div>
@@ -262,14 +288,25 @@
 </div>
 <div class="coverage-summary hidden" id="coverage-summary">
 <div><strong data-i18n="vcv_check" id="coverage-main-label">连续音检查</strong><span id="coverage-vcv-value">—</span></div>
-<div><strong data-i18n="starting_sounds_check" id="coverage-start-label">句首音检查</strong><span id="coverage-start-value">—</span></div>
+<div id="coverage-start-row"><strong data-i18n="starting_sounds_check" id="coverage-start-label">句首音检查</strong><span id="coverage-start-value">—</span></div>
 <div><strong data-i18n="missing_sounds">缺少的音</strong><span id="coverage-missing-value">—</span></div>
 <div class="missing-groups hidden" id="coverage-missing-list"></div>
 </div>
 <p class="dirty-status hidden" data-i18n="dirty_status" id="dirty-status">设置已更改，请刷新生成。</p>
 <p aria-live="polite" class="status" id="status"></p>
 </section>
-<footer><p data-i18n="footer_version">v0.28：单独音 / 连单术 / 连续音 / CVVC</p><p class="author-credit">UTAU Reclist Generator · by itsukiMNE</p></footer>
+
+<section class="panel credit-panel" id="credit-note">
+  <h2 data-i18n="credit_title">署名 / Credit</h2>
+  <p class="hint" data-i18n="credit_normal">一般使用不强制署名。</p>
+  <p class="hint" data-i18n="credit_redistribute">如果公开配布本工具生成的录音表，或以生成结果为基础修改后再配布，请在 README 等说明文件中注明本工具的网址和作者名 itsukiMNE。</p>
+  <p class="hint" data-i18n="credit_template_hint">可以直接复制以下格式：</p>
+  <pre class="credit-template">Reclist generated with UTAU Reclist Generator
+https://itsukimne.github.io/utau-reclist-generator/
+by itsukiMNE</pre>
+</section>
+
+<footer><p data-i18n="footer_version">v0.38：单独音 / 连单风 / 连单术 / 连续音 / CVVC</p><p class="author-credit">UTAU Reclist Generator · by itsukiMNE</p></footer>
 </main>
 <script src="sounds.js"></script>
 <script src="groups.js"></script>
