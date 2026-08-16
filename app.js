@@ -1,5 +1,5 @@
 // app.js
-// v0.38：中文 / 日本語 / English。
+// v0.39：中文 / 日本語 / English。
 
 function t(key) {
   return uiText(key);
@@ -141,7 +141,7 @@ function rawSequenceForGroup(id, settings) {
   if (!group) return [];
 
   if (
-    settings.mode === "rentan" &&
+    (settings.mode === "rentan" || settings.mode === "rentanfu") &&
     settings.rentanSet === "standard" &&
     RENTAN_STANDARD_OVERRIDES[id]
   ) {
