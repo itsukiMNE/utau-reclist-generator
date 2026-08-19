@@ -1,5 +1,5 @@
 // app.js
-// v0.39：中文 / 日本語 / English。
+// v0.41：中文 / 日本語 / English。
 
 function t(key) {
   return uiText(key);
@@ -41,6 +41,7 @@ const helperRecommendedBadge = document.getElementById("helper-recommended-badge
 const cvvcNumberingRow = document.getElementById("cvvc-numbering-row");
 const cvvcStartModeRow = document.getElementById("cvvc-start-mode-row");
 const cvvc7MoraWarning = document.getElementById("cvvc-7mora-warning");
+const vcvN6Warning = document.getElementById("vcv-n6-warning");
 const coverageStartRow = document.getElementById("coverage-start-row");
 const cvvcNumbering = document.getElementById("cvvc-numbering");
 const coverageSummary = document.getElementById("coverage-summary");
@@ -480,6 +481,14 @@ function syncMoraAndNControls() {
   cvvc7MoraWarning.classList.toggle(
     "hidden",
     !(mode === "cvvc" && mora === 7)
+  );
+
+  const currentNPosition = Number(
+    document.querySelector('input[name="vcv-n-position"]:checked')?.value ?? 2
+  );
+  vcvN6Warning.classList.toggle(
+    "hidden",
+    !(mode === "vcv" && mora === 7 && currentNPosition === 6)
   );
 }
 
@@ -1183,7 +1192,18 @@ function buildOptimizedShortULines(settings) {
     };
 
     const splitLong = splitTokenLineWithOverlap(longLine, settings.vcvMora);
-    const firstLine = splitLong[0];
+    let firstLine = splitLong[0];
+
+    // 7 mora keeps the compact first line used by 6 mora.
+    if (settings.vcvMora === 7 && firstLine.tokens.length === 7) {
+      const tokens = firstLine.tokens.slice(0, 6);
+      firstLine = {
+        ...firstLine,
+        tokens,
+        text: "_" + tokens.map(token => token.sound).join("")
+      };
+    }
+
     lines.push(firstLine);
 
     if (settings.vcvMora === 8) {
@@ -2416,6 +2436,7 @@ document.querySelectorAll(
 ).forEach(el => el.addEventListener("change", () => {
   markOutputDirty();
   syncRequiredGroups();
+  syncMoraAndNControls();
   updateVcvTemplateExample();
   if (getMode() === "rentan" || getMode() === "rentanfu") renderPreview();
   refreshUiText();

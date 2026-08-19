@@ -77,7 +77,7 @@ CVVC 使用 7 mora 录音表时，如果仍搭配 8 mora BGM，录音总时间�
 示例：
 
 ```text
-Reclist generated with UTAU Reclist Generator
+Made with UTAU Reclist Generator
 https://itsukimne.github.io/utau-reclist-generator/
 by itsukiMNE
 ```

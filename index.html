@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<title data-i18n="title">UTAU 录音表自动生成 v0.39</title>
+<title data-i18n="title">UTAU 录音表自动生成 v0.41</title>
 <link href="style.css" rel="stylesheet"/>
 </head>
 <body>
@@ -12,7 +12,7 @@
 <header class="hero hero-row">
 <div>
 <h1 data-i18n="app_title">UTAU 录音表自动生成</h1>
-<p class="sub" data-i18n="subtitle">Prototype v0.39 — 单独音 / 连单风 / 连单术 / 连续音 / CVVC</p>
+<p class="sub" data-i18n="subtitle">Prototype v0.41 — 单独音 / 连单风 / 连单术 / 连续音 / CVVC</p>
 </div>
 <div aria-label="Language" class="language-switcher"><label><input checked="" name="language" type="radio" value="zh"/><span>中文</span></label><label><input name="language" type="radio" value="ja"/><span>日本語</span></label><label><input name="language" type="radio" value="en"/><span>English</span></label></div></header>
     <div class="development-notice" id="development-notice" data-i18n="development_notice">
@@ -209,6 +209,9 @@
 <div class="template-rule" id="vcv-template-rule">A N A A I A U A</div>
 <code id="vcv-template-example">_あんああいあうあ</code>
 </div>
+<div class="vcv-n6-warning hidden" id="vcv-n6-warning" data-i18n="vcv_n6_warning">
+「ん」放在第6拍时，生成的录音表会比其他位置稍长。若没有特别需求，推荐选择其他位置。
+</div>
 <div class="option-row hidden" id="cvvc-numbering-row">
 <div>
 <strong data-i18n="add_numbers">自动编号</strong>
@@ -301,12 +304,12 @@
   <p class="hint" data-i18n="credit_normal">一般使用不强制署名。</p>
   <p class="hint" data-i18n="credit_redistribute">如果公开配布本工具生成的录音表，或以生成结果为基础修改后再配布，请在 README 等说明文件中注明本工具的网址和作者名 itsukiMNE。</p>
   <p class="hint" data-i18n="credit_template_hint">可以直接复制以下格式：</p>
-  <pre class="credit-template">Reclist generated with UTAU Reclist Generator
+  <pre class="credit-template">Made with UTAU Reclist Generator
 https://itsukimne.github.io/utau-reclist-generator/
 by itsukiMNE</pre>
 </section>
 
-<footer><p data-i18n="footer_version">v0.39：单独音 / 连单风 / 连单术 / 连续音 / CVVC</p><p class="author-credit">UTAU Reclist Generator · by itsukiMNE</p></footer>
+<footer><p data-i18n="footer_version">v0.41：单独音 / 连单风 / 连单术 / 连续音 / CVVC</p><p class="author-credit">UTAU Reclist Generator · by itsukiMNE</p></footer>
 </main>
 <script src="sounds.js"></script>
 <script src="groups.js"></script>
