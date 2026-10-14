@@ -1,5 +1,5 @@
 // app.js
-// v0.41：中文 / 日本語 / English。
+// v0.42：中文 / 日本語 / English。
 
 function t(key) {
   return uiText(key);
@@ -542,9 +542,13 @@ function getVcvTargetIndices(id, settings) {
   }
 
   if (VCV_HELPER_GROUPS.has(id)) {
-    if (settings.vcvHelper === "full") {
+    if (
+      settings.vcvHelper === "full" ||
+      ["SH", "CH", "J"].includes(id)
+    ) {
       return seq.map((_, i) => i);
     }
+
     const cv = new Set(group.cv);
     return seq
       .map((sound, i) => cv.has(sound) ? i : -1)
