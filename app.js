@@ -1,5 +1,5 @@
 // app.js
-// v0.42：中文 / 日本語 / English。
+// v0.43：中文 / 日本語 / English。
 
 function t(key) {
   return uiText(key);
